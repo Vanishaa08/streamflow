@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import env from './src/config/env.js';
+import authRoutes from './src/routes/auth.routes.js';
 
 const app = express();
 
@@ -58,6 +59,8 @@ app.get('/health', (req, res) => {
     uptime: `${Math.floor(process.uptime())}s`,
   });
 });
+
+app.use('/api/auth', authRoutes);
 
 //404 handler 
 // Catches any request that didn't match a route above
