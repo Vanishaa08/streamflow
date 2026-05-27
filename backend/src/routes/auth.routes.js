@@ -1,20 +1,11 @@
 import { Router } from 'express';
 import { register, login, refresh, logout } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
-import rateLimit from 'express-rate-limit';
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Too many attempts, try again later' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 const router = Router();
 
-router.post('/register', authLimiter, register);
-router.post('/login', authLimiter, login);
+router.post('/register', register);
+router.post('/login', login);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
 router.get('/me', protect, (req, res) => {
