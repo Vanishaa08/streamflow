@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import env from './src/config/env.js';
 import authRoutes from './src/routes/auth.routes.js';
+import userRoutes from './src/routes/user.routes.js';
 
 const app = express();
 
@@ -33,6 +34,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+
+app.use('/api/users', userRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
