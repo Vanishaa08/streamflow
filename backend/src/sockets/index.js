@@ -1,9 +1,11 @@
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { verifyAccessToken } from '../utils/jwt.utils.js';
 import User from '../models/user.model.js';
 import { registerChatHandlers } from './chat.socket.js';
+import { pubClient, subClient } from '../config/redis.js';
 
-const connectedUsers = new Map(); // socketId → user data
+const connectedUsers = new Map();
 
 export const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -14,30 +16,26 @@ export const initializeSocket = (httpServer) => {
     },
   });
 
-  // Socket.io middleware — runs before every connection
-  // This is where we authenticate the WebSocket handshake
+  // Attach Redis adapter — this is what enables multi-server pub/sub
+  // Every emit now goes through Redis and fans out to all server instances
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log('[SOCKET] Redis adapter attached');
+
+  // Authentication middleware
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-
-      if (!token) {
-        return next(new Error('Authentication token required'));
-      }
+      if (!token) return next(new Error('Authentication token required'));
 
       const decoded = verifyAccessToken(token);
       const user = await User.findById(decoded.userId);
+      if (!user) return next(new Error('User not found'));
 
-      if (!user) {
-        return next(new Error('User not found'));
-      }
-
-      // Attach user to socket — available in all handlers
       socket.user = {
         _id: user._id.toString(),
         username: user.username,
         role: user.role,
       };
-
       next();
     } catch (error) {
       next(new Error('Invalid token'));
@@ -46,11 +44,8 @@ export const initializeSocket = (httpServer) => {
 
   io.on('connection', (socket) => {
     console.log(`[SOCKET] Connected: ${socket.user.username} (${socket.id})`);
-
-    // Track connected user
     connectedUsers.set(socket.id, socket.user);
 
-    // Register chat event handlers
     registerChatHandlers(io, socket);
 
     socket.on('disconnect', (reason) => {

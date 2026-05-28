@@ -3,15 +3,13 @@ import app from './app.js';
 import connectDB from './src/config/db.js';
 import env from './src/config/env.js';
 import { initializeSocket } from './src/sockets/index.js';
+import { connectRedis } from './src/config/redis.js';
 
 const startServer = async () => {
   await connectDB();
+  await connectRedis();
 
-  // Create HTTP server from Express app
-  // Socket.io needs the raw HTTP server, not the Express app
   const httpServer = createServer(app);
-
-  // Initialize Socket.io on the same HTTP server
   const io = initializeSocket(httpServer);
 
   httpServer.listen(env.port, () => {
@@ -23,6 +21,7 @@ const startServer = async () => {
 ║  Mode    : ${env.nodeEnv.padEnd(12)}              ║
 ║  Health  : http://localhost:${env.port}/health ║
 ║  Socket  : enabled                     ║
+║  Redis   : enabled                     ║
 ╚════════════════════════════════════════╝
     `);
   });
