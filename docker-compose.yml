@@ -1,17 +1,13 @@
-version: '3.8'
-
 services:
-  # MongoDB service
   mongodb:
     image: mongo:7
     container_name: streamflow_mongodb
     restart: unless-stopped
     volumes:
-      - mongodb_data:/data/db  # persist data outside container
+      - mongodb_data:/data/db
     networks:
       - streamflow_network
 
-  # Redis service
   redis:
     image: redis:7-alpine
     container_name: streamflow_redis
@@ -21,7 +17,6 @@ services:
     networks:
       - streamflow_network
 
-  # Backend service
   backend:
     build:
       context: .
@@ -44,7 +39,22 @@ services:
     networks:
       - streamflow_network
 
-  # Frontend service
+  nginx-rtmp:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    container_name: streamflow_rtmp
+    restart: unless-stopped
+    ports:
+      - "1935:1935"   # RTMP ingest port
+      - "8080:80"     # HLS delivery port
+    depends_on:
+      - backend
+    networks:
+      - streamflow_network
+    volumes:
+      - hls_data:/tmp/hls  # shared HLS segments
+
   frontend:
     build:
       context: .
@@ -52,18 +62,17 @@ services:
     container_name: streamflow_frontend
     restart: unless-stopped
     ports:
-      - "80:80"  # expose port 80 to host
+      - "80:80"
     depends_on:
       - backend
     networks:
       - streamflow_network
 
-# Named volumes — data persists even when containers stop
 volumes:
   mongodb_data:
   redis_data:
+  hls_data:
 
-# Internal network — containers talk to each other by service name
 networks:
   streamflow_network:
     driver: bridge
