@@ -6,8 +6,8 @@ export const getUserByUsername = async (req, res) => {
     const { username } = req.params;
 
     const user = await User.findOne({ username }).select(
-      'username isLive role _id'
-    );
+  'username isLive role _id streamKey'
+);
 
     if (!user) {
       return sendError(res, 'User not found', 404);

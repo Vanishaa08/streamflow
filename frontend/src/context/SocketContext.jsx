@@ -21,9 +21,10 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Create socket connection with access token
-   const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+   const newSocket = io(import.meta.env.VITE_SOCKET_URL || window.location.origin, {
   auth: { token: accessToken },
   transports: ['websocket'],
+  path: '/socket.io',
 });
 
     newSocket.on('connect', () => {
