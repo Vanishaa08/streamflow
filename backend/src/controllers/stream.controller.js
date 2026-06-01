@@ -1,8 +1,8 @@
 import * as streamService from '../services/stream.service.js';
+import { sendSuccess, sendError } from '../utils/response.utils.js';
 
 export const authenticateStream = async (req, res) => {
   try {
-    // Nginx RTMP sends stream key as 'name' in the request body
     const streamKey = req.body.name || req.query.name;
 
     if (!streamKey) {
@@ -10,10 +10,7 @@ export const authenticateStream = async (req, res) => {
     }
 
     const user = await streamService.authenticateStream(streamKey);
-
     console.log(`[STREAM] ${user.username} started streaming`);
-
-    // Nginx expects 2xx to allow, anything else rejects the stream
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[STREAM] Auth failed: ${error.message}`);
@@ -35,6 +32,15 @@ export const streamDone = async (req, res) => {
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[STREAM] Done callback error: ${error.message}`);
-    res.status(200).send('OK'); // always return 200 for done callback
+    res.status(200).send('OK');
+  }
+};
+
+export const getAnalytics = async (req, res) => {
+  try {
+    const analytics = await streamService.getStreamerAnalytics(req.user._id);
+    sendSuccess(res, analytics, 200, 'Analytics fetched');
+  } catch (error) {
+    sendError(res, error.message, 500);
   }
 };

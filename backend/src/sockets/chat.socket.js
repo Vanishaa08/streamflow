@@ -1,34 +1,30 @@
 import redisClient from '../config/redis.js';
 
 export const registerChatHandlers = (io, socket) => {
-  // Join a stream's chat room
   socket.on('joinStream', async (streamId) => {
     socket.join(streamId);
     console.log(`[SOCKET] ${socket.user.username} joined stream: ${streamId}`);
 
-    // Increment viewer count in Redis
-    // INCR is atomic — safe even with multiple server instances
     const viewerCount = await redisClient.incr(`viewers:${streamId}`);
 
-    // Notify others in the room
+    // Track peak viewers
+    const peak = await redisClient.get(`viewers:peak:${streamId}`) || 0;
+    if (viewerCount > parseInt(peak)) {
+      await redisClient.set(`viewers:peak:${streamId}`, viewerCount);
+    }
+
     socket.to(streamId).emit('userJoined', {
       username: socket.user.username,
       timestamp: new Date().toISOString(),
     });
 
-    // Send confirmation + current viewer count to joining user
     socket.emit('joinedStream', { streamId, viewerCount });
-
-    // Broadcast updated viewer count to everyone in room
     io.to(streamId).emit('viewerCount', { count: viewerCount });
   });
 
-  // Leave a stream's chat room
   socket.on('leaveStream', async (streamId) => {
     socket.leave(streamId);
-    console.log(`[SOCKET] ${socket.user.username} left stream: ${streamId}`);
 
-    // Decrement viewer count — never go below 0
     const current = await redisClient.get(`viewers:${streamId}`);
     if (current && parseInt(current) > 0) {
       const viewerCount = await redisClient.decr(`viewers:${streamId}`);
@@ -41,10 +37,9 @@ export const registerChatHandlers = (io, socket) => {
     });
   });
 
-  // Handle disconnect — clean up viewer count
   socket.on('disconnecting', async () => {
     for (const room of socket.rooms) {
-      if (room === socket.id) continue; // skip default room
+      if (room === socket.id) continue;
 
       const current = await redisClient.get(`viewers:${room}`);
       if (current && parseInt(current) > 0) {
@@ -54,11 +49,13 @@ export const registerChatHandlers = (io, socket) => {
     }
   });
 
-  // Handle incoming chat message
-  socket.on('sendMessage', ({ streamId, message }) => {
+  socket.on('sendMessage', async ({ streamId, message }) => {
     if (!streamId || !message?.trim()) return;
 
     const sanitized = message.trim().slice(0, 500);
+
+    // Track message count for analytics
+    await redisClient.incr(`messages:${streamId}`);
 
     const chatMessage = {
       id: `${socket.id}-${Date.now()}`,
