@@ -7,6 +7,7 @@ import env from './src/config/env.js';
 import authRoutes from './src/routes/auth.routes.js';
 import userRoutes from './src/routes/user.routes.js';
 import streamRoutes from './src/routes/stream.routes.js';
+import { globalErrorHandler } from './src/middlewares/error.middleware.js';
 
 const app = express();
 
@@ -47,12 +48,6 @@ app.use((req, res) => {
   });
 });
 
-app.use((err, req, res, next) => {
-  console.error(`[ERROR] ${err.stack}`);
-  res.status(err.status || 500).json({
-    success: false,
-    message: env.isDev ? err.message : 'Internal server error',
-  });
-});
+app.use(globalErrorHandler);
 
 export default app;
